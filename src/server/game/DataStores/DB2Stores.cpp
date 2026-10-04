@@ -1055,9 +1055,14 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, LocaleConstant defaul
     // error checks
 
     // Check loaded DB2 files proper version
+    // NOTE: 208392 (Account Bank Tab Bag) and 242709 (Character Bank Tab Bag) are
+    // DNT retail items for the bank-tab-bag UI feature. They are not present in every
+    // extracted client data set, so their absence is a non-fatal warning (the feature
+    // is simply unavailable) rather than a hard error that aborts worldserver startup.
+    // Genuine DB2 load failures are still reported via loadErrors and remain fatal.
     for (uint32 criticalItemId : { ITEM_ACCOUNT_BANK_TAB_BAG, ITEM_CHARACTER_BANK_TAB_BAG })
         if (!sItemSparseStore.LookupEntry(criticalItemId))
-            loadErrors.emplace_back(Trinity::StringFormat("Missing required item {} from ItemSparse.db2 (or its hotfix table)", criticalItemId));
+            TC_LOG_WARN("misc", "Missing optional item {} from ItemSparse.db2 (or its hotfix table) - bank tab bags will be unavailable.", criticalItemId);
 
     if (!loadErrors.empty())
     {
