@@ -1,4 +1,3 @@
-
 build*/
 .directory
 .mailmap
@@ -23,3 +22,19 @@ nbproject/*
 cmake-build-*/*
 .vs
 *.user
+
+# --- Local environment / build artifacts (AI-NPC project) ---
+*.log
+*.7z
+*.zip
+*.tar.*
+my.ini
+.venv/
+venv/
+__pycache__/
+*.pyc
+_test.sql
+
+# Root-level local build / start scripts (dev convenience, not source)
+/*.bat
+/*.sh

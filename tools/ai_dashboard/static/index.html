@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LivingNPC Dashboard</title>
+<style>
+  :root {
+    --bg:#0d1117; --card:#161b22; --border:#30363d; --text:#e6edf3;
+    --muted:#8b949e; --accent:#2f81f7; --red:#f85149; --green:#3fb950;
+    --amber:#d29922;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+  header { display:flex; align-items:center; gap:16px; padding:12px 20px; background:var(--card); border-bottom:1px solid var(--border); }
+  header h1 { font-size:16px; margin:0; }
+  header .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  nav { display:flex; gap:6px; }
+  nav button { background:none; border:1px solid var(--border); color:var(--muted); padding:6px 12px; border-radius:6px; cursor:pointer; }
+  nav button.active { color:var(--text); border-color:var(--accent); }
+  main { padding:20px; max-width:1200px; margin:0 auto; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .badge.red { background:rgba(248,81,73,.15); color:var(--red); }
+  .badge.green { background:rgba(63,185,80,.15); color:var(--green); }
+  .badge.gray { background:rgba(139,148,158,.15); color:var(--muted); }
+  .mono { font-family:Consolas,monospace; font-size:12px; }
+  button { background:var(--accent); color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; }
+  button.ghost { background:none; border:1px solid var(--border); color:var(--muted); }
+  button.danger { background:var(--red); }
+  input, select, textarea { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 8px; font-size:13px; }
+  textarea { width:100%; font-family:Consolas,monospace; font-size:12px; line-height:1.5; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .hint { color:var(--muted); font-size:12px; }
+  .pre { white-space:pre-wrap; font-family:Consolas,monospace; font-size:12px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px; }
+  a { color:var(--accent); }
+  .click { cursor:pointer; }
+  .tree li { cursor:pointer; padding:2px 0; list-style:none; }
+  .tree li:hover { color:var(--accent); }
+  .tree ul { padding-left:16px; }
+  .tab { display:none; }
+  .tab.active { display:block; }
+  .pulse { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>LivingNPC Dashboard</h1>
+  <span class="dot" id="dbdot" style="background:var(--amber)"></span>
+  <span class="hint" id="dbstatus">checking…</span>
+  <nav>
+    <button class="active" data-tab="events">Events</button>
+    <button data-tab="npcs">NPCs</button>
+    <button data-tab="prompts">Prompts</button>
+    <button data-tab="config">Config</button>
+  </nav>
+</header>
+<main>
+  <section id="tab-events" class="tab active">
+    <div class="card">
+      <div class="row">
+        <b>Event log</b>
+        <span id="eventstats" class="hint"></span>
+      </div>
+      <div class="row">
+        <select id="f-type"><option value="">all types</option></select>
+        <input id="f-uid" placeholder="filter uid (npc_spawn:… / player:…)" style="min-width:260px">
+        <label><input type="checkbox" id="f-unproc"> red only (not in AI)</label>
+        <button id="btn-refresh">Refresh</button>
+        <button class="ghost" id="btn-clear">Clear log…</button>
+      </div>
+      <table id="evtable">
+        <thead><tr><th>id</th><th>type</th><th>actor</th><th>target</th><th>content</th><th>location</th><th>AI</th><th>time</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card" id="evdetail" style="display:none">
+      <b>Event detail</b> <button class="ghost" id="evdetail-close">close</button>
+      <pre class="pre" id="evdetail-json"></pre>
+    </div>
+  </section>
+
+  <section id="tab-npcs" class="tab">
+    <div class="card">
+      <b>Add NPC</b>
+      <div class="row" style="margin-top:8px">
+        <input id="npc-entry" type="number" placeholder="entry (creature_template.entry)" style="width:180px">
+        <input id="npc-name" placeholder="display name" style="width:240px">
+        <button id="btn-add-npc">Add / register</button>
+        <span class="hint">creates the ai_character row + an empty bio file</span>
+      </div>
+      <table id="npctable">
+        <thead><tr><th>entry</th><th>name</th><th>bio file</th><th>enabled</th><th>model</th><th>lang</th><th>last seen</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card" id="npcedit" style="display:none">
+      <div class="row">
+        <b id="npcedit-title"></b>
+        <button class="ghost" id="npcedit-close">close</button>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="bio-enabled"> enabled</label>
+        <input id="bio-model" placeholder="model override (blank = global)" style="width:260px">
+        <input id="bio-lang" placeholder="lang (blank = AISystem.Language)" style="width:200px">
+        <input id="bio-temp" type="number" step="0.1" placeholder="temperature" style="width:120px">
+        <button id="btn-save-overrides">Save overrides</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="hint" style="margin-bottom:6px">Bio markdown (injected into {{bio}})</div>
+          <textarea id="bio-text" rows="14"></textarea>
+          <div class="row" style="margin-top:8px">
+            <button id="btn-save-bio">Save bio</button>
+            <span class="hint" id="bio-saved"></span>
+          </div>
+        </div>
+        <div>
+          <div class="hint" style="margin-bottom:6px">Preview</div>
+          <div class="pre" id="bio-preview">…</div>
+          <div class="hint" style="margin:10px 0 4px">Recent events for this spawn/entry</div>
+          <table id="npc-events"><thead><tr><th>id</th><th>type</th><th>content</th><th>AI</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-prompts" class="tab">
+    <div class="card">
+      <div class="row">
+        <b>Prompt files</b>
+        <span class="hint" id="prompt-root-hint"></span>
+        <button class="ghost" id="btn-new-slot">+ new slot file</button>
+      </div>
+      <div class="grid2">
+        <div>
+          <div class="tree" id="ptree"></div>
+        </div>
+        <div>
+          <div class="row"><b id="pfile-name"></b>
+            <button id="btn-save-prompt">Save</button>
+            <button class="ghost" id="btn-validate">Validate placeholders</button>
+            <span class="hint" id="pfile-saved"></span>
+          </div>
+          <textarea id="pfile-text" rows="16" placeholder="select a file…"></textarea>
+          <div class="hint" id="pfile-errors" style="color:var(--red); white-space:pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <b>Assembled prompt preview</b>
+      <div class="row" style="margin-top:8px">
+        <label>type
+          <select id="pv-type">
+            <option>player_chat</option><option>npc_chat</option><option>ambient</option>
+          </select>
+        </label>
+        <input id="pv-npc" placeholder="npc name" value="Wizengamot Guard" style="width:180px">
+        <input id="pv-entry" type="number" placeholder="entry" value="3123" style="width:90px">
+        <input id="pv-player" placeholder="player" value="Player" style="width:140px">
+        <input id="pv-target" placeholder="target" value="Adventurer" style="width:140px">
+        <input id="pv-lang" placeholder="lang" value="en" style="width:80px">
+        <button id="btn-preview">Assemble</button>
+      </div>
+      <pre class="pre" id="pv-out">…</pre>
+    </div>
+  </section>
+
+  <section id="tab-config" class="tab">
+    <div class="card">
+      <b>Status</b>
+      <pre class="pre" id="cfg-status">…</pre>
+    </div>
+    <div class="card">
+      <b>worldserver.conf (AISystem.* + AIDatabaseInfo)</b>
+      <pre class="pre" id="cfg-conf">…</pre>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let NpcEntry = null, PromptPath = null;
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function post(path, body) {
+  return api(path, { method:"POST", headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+}
+function put(path, body) {
+  return api(path, { method:"PUT", headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+}
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  $("#tab-" + b.dataset.tab).classList.add("active");
+  if (b.dataset.tab === "events") loadEvents();
+  if (b.dataset.tab === "npcs") loadNpcs();
+  if (b.dataset.tab === "prompts") loadTree();
+  if (b.dataset.tab === "config") loadConfig();
+}));
+
+/* ---------------- status ---------------- */
+async function refreshStatus() {
+  try {
+    const s = await api("/api/status");
+    const dot = $("#dbdot");
+    if (s.db) { dot.style.background = "var(--green)"; $("#dbstatus").textContent = "db ok · " + (s.event_count ?? 0) + " events · root " + (s.prompt_root_exists ? "exists" : "MISSING"); }
+    else { dot.style.background = "var(--red)"; $("#dbstatus").textContent = "db down · " + (s.db_error || ""); }
+  } catch (e) { $("#dbstatus").textContent = "api error: " + e.message; }
+}
+
+/* ---------------- events ---------------- */
+async function loadTypes() {
+  const types = await api("/api/events/types");
+  const sel = $("#f-type"); const cur = sel.value;
+  sel.innerHTML = '<option value="">all types</option>' + types.map(t => `<option>${esc(t)}</option>`).join("");
+  sel.value = cur;
+}
+async function loadEvents() {
+  const p = new URLSearchParams({ limit: 100 });
+  if ($("#f-type").value) p.set("type", $("#f-type").value);
+  if ($("#f-uid").value.trim()) p.set("uid", $("#f-uid").value.trim());
+  if ($("#f-unproc").checked) p.set("unprocessed", 1);
+  const rows = await api("/api/events?" + p);
+  const stats = await api("/api/events/stats");
+  $("#eventstats").textContent = `${stats.total ?? 0} events · ${stats.unprocessed ?? 0} red · ${stats.npc ?? 0} npcs`;
+  const tb = $("#evtable tbody");
+  tb.innerHTML = rows.map(r => {
+    const red = !r.ai_processed;
+    const badge = red ? '<span class="badge red">NOT in AI</span>' : '<span class="badge green">in AI</span>';
+    const content = (r.content || "").replace(/\n/g, " ⏎ ");
+    return `<tr class="click" data-id="${r.id}">
+      <td class="mono">${r.id}</td>
+      <td><span class="badge gray">${esc(r.type)}</span></td>
+      <td class="mono">${esc(r.actor_name || r.actor_uid)}<br><span class="hint">${esc(r.actor_uid)}</span></td>
+      <td>${r.target_name ? esc(r.target_name) : '<span class="hint">—</span>'}</td>
+      <td>${esc(content || "—")}</td>
+      <td class="hint">${esc(r.location || "")}</td>
+      <td>${badge}</td>
+      <td class="hint mono">${esc(r.created_at || "")}</td></tr>`;
+  }).join("") || '<tr><td colspan="8" class="hint">no events</td></tr>';
+  tb.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", () => {
+    const r = rows.find(x => String(x.id) === tr.dataset.id);
+    if (!r) return;
+    $("#evdetail").style.display = "block";
+    $("#evdetail-json").textContent = JSON.stringify(r, null, 2);
+  }));
+}
+$("#btn-refresh").addEventListener("click", loadEvents);
+$("#f-type").addEventListener("change", loadEvents);
+$("#f-unproc").addEventListener("change", loadEvents);
+$("#f-uid").addEventListener("change", loadEvents);
+$("#evdetail-close").addEventListener("click", () => $("#evdetail").style.display = "none");
+$("#btn-clear").addEventListener("click", async () => {
+  if (!confirm("Delete ALL events? (testing only)")) return;
+  await api("/api/events?confirm=1", { method: "DELETE" });
+  loadEvents();
+});
+
+/* ---------------- npcs ---------------- */
+async function loadNpcs() {
+  const rows = await api("/api/npcs");
+  $("#npctable tbody").innerHTML = rows.map(r => `<tr class="click" data-entry="${r.entry}">
+    <td class="mono">${r.entry}</td>
+    <td>${esc(r.name)}</td>
+    <td class="mono hint">${esc(r.bio_file)}${r.bio_exists ? "" : ' <span class="badge red">no file</span>'}</td>
+    <td>${r.enabled ? '<span class="badge green">on</span>' : '<span class="badge gray">off</span>'}</td>
+    <td class="hint">${esc(r.model || "")}</td>
+    <td class="hint">${esc(r.language || "")}</td>
+    <td class="hint">${esc(r.last_seen || "")}</td>
+    <td><button class="ghost">edit</button></td></tr>`).join("") || '<tr><td colspan="8" class="hint">no NPCs registered yet</td></tr>';
+  $("#npctable tbody").querySelectorAll("tr").forEach(tr => tr.addEventListener("click", () => openNpc(tr.dataset.entry)));
+}
+$("#btn-add-npc").addEventListener("click", async () => {
+  const entry = parseInt($("#npc-entry").value), name = $("#npc-name").value.trim();
+  if (!entry || !name) return alert("entry + name required");
+  await post("/api/npcs", { entry, name });
+  $("#npc-entry").value = ""; $("#npc-name").value = "";
+  loadNpcs(); refreshStatus();
+});
+async function openNpc(entry) {
+  NpcEntry = entry;
+  const r = await api("/api/npcs/" + entry);
+  $("#npcedit").style.display = "block";
+  $("#npcedit-title").textContent = `NPC ${r.entry} — ${r.name}`;
+  $("#bio-enabled").checked = !!r.enabled;
+  $("#bio-model").value = r.model || "";
+  $("#bio-lang").value = r.language || "";
+  $("#bio-temp").value = r.temperature ?? "";
+  $("#bio-text").value = r.bio || "";
+  $("#bio-preview").textContent = r.bio || "(empty bio)";
+  const ev = await api("/api/events?uid=npc_spawn%3A" + entry + "&limit=50").catch(() => []);
+  $("#npc-events tbody").innerHTML = ev.map(x => `<tr>
+    <td class="mono">${x.id}</td>
+    <td><span class="badge gray">${esc(x.type)}</span></td>
+    <td>${esc((x.content||"").slice(0,60))}</td>
+    <td>${x.ai_processed ? '<span class="badge green">in AI</span>' : '<span class="badge red">not</span>'}</td></tr>`).join("") || '<tr><td colspan="4" class="hint">no events</td></tr>';
+}
+$("#npcedit-close").addEventListener("click", () => { $("#npcedit").style.display = "none"; NpcEntry = null; });
+$("#bio-text").addEventListener("input", () => $("#bio-preview").textContent = $("#bio-text").value);
+$("#btn-save-bio").addEventListener("click", async () => {
+  await put(`/api/npcs/${NpcEntry}/bio`, { content: $("#bio-text").value });
+  $("#bio-saved").textContent = "saved " + new Date().toLocaleTimeString();
+});
+$("#btn-save-overrides").addEventListener("click", async () => {
+  await put(`/api/npcs/${NpcEntry}`, {
+    enabled: $("#bio-enabled").checked,
+    model: $("#bio-model").value || null,
+    language: $("#bio-lang").value || null,
+    temperature: $("#bio-temp").value ? parseFloat($("#bio-temp").value) : null,
+  });
+  $("#bio-saved").textContent = "overrides saved";
+  loadNpcs();
+});
+
+/* ---------------- prompts ---------------- */
+async function loadTree() {
+  const t = await api("/api/prompts");
+  $("#prompt-root-hint").textContent = "root: " + t.root;
+  const files = t.files;
+  const tree = {};
+  files.forEach(f => { const parts = f.split("/"); let n = tree; for (let i=0;i<parts.length;i++){ (n[parts[i]] = n[parts[i]] || {}); n = n[parts[i]]; } });
+  function render(node, path) {
+    let out = "<ul>";
+    for (const k of Object.keys(node).sort()) {
+      const p = path ? path + "/" + k : k;
+      if (Object.keys(node[k]).length) out += `<li>📁 ${esc(k)}${render(node[k], p)}</li>`;
+      else out += `<li data-file="${esc(p)}">📄 ${esc(k)}</li>`;
+    }
+    return out + "</ul>";
+  }
+  $("#ptree").innerHTML = render(tree, "");
+  $("#ptree").querySelectorAll("li[data-file]").forEach(li => li.addEventListener("click", () => openPromptFile(li.dataset.file)));
+}
+async function openPromptFile(path) {
+  PromptPath = path;
+  const f = await api("/api/prompts/file?path=" + encodeURIComponent(path));
+  $("#pfile-name").textContent = path;
+  $("#pfile-text").value = f.content;
+  $("#pfile-errors").textContent = "";
+  validatePlaceholders(f.content);
+}
+function validatePlaceholders(txt) {
+  const known = new Set(["npc","npc_entry","player","target","zone","map","location","time","language","last_line","bio","memories","summary","events"]);
+  const bad = new Set();
+  for (const m of txt.matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)) if (!known.has(m[1])) bad.add(m[1]);
+  $("#pfile-errors").textContent = bad.size ? "unknown placeholders: " + [...bad].join(", ") : "";
+}
+$("#pfile-text").addEventListener("input", () => validatePlaceholders($("#pfile-text").value));
+$("#btn-save-prompt").addEventListener("click", async () => {
+  await put("/api/prompts/file?path=" + encodeURIComponent(PromptPath), { content: $("#pfile-text").value });
+  $("#pfile-saved").textContent = "saved " + new Date().toLocaleTimeString() + " (worldserver picks it up on next request / .ai reload)";
+});
+$("#btn-validate").addEventListener("click", () => validatePlaceholders($("#pfile-text").value));
+$("#btn-new-slot").addEventListener("click", () => {
+  const name = prompt("New file path under prompts/ (e.g. player_chat/new_slot.md)");
+  if (!name) return;
+  PromptPath = name.replace(/^\/+/, "");
+  $("#pfile-name").textContent = PromptPath;
+  $("#pfile-text").value = "{{npc}}: ";
+  $("#pfile-errors").textContent = "";
+});
+$("#btn-preview").addEventListener("click", async () => {
+  const body = {
+    type: $("#pv-type").value, npc: $("#pv-npc").value, entry: parseInt($("#pv-entry").value || "0"),
+    player: $("#pv-player").value, target: $("#pv-target").value, language: $("#pv-lang").value,
+  };
+  const r = await post("/api/prompts/preview", body);
+  $("#pv-out").textContent = "── SYSTEM ──\n" + r.system + "\n\n── USER (assembled slots) ──\n" + r.user;
+});
+
+/* ---------------- config ---------------- */
+async function loadConfig() {
+  const s = await api("/api/status");
+  $("#cfg-status").textContent = JSON.stringify(s, null, 2);
+  const c = await api("/api/config");
+  $("#cfg-conf").textContent = "prompt_root: " + c.prompt_root + "\n" + JSON.stringify(c.server_conf, null, 2);
+}
+
+/* ---------------- boot ---------------- */
+refreshStatus();
+loadTypes();
+setInterval(() => {
+  if ($("#tab-events").classList.contains("active")) loadEvents();
+  refreshStatus();
+}, 5000);
+</script>
+</body>
+</html>

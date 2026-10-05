@@ -15,10 +15,20 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DatabaseEnv.h"
+#include "AIDatabase.h"
+#include "MySQLPreparedStatement.h"
 
-DatabaseWorkerPool<WorldDatabaseConnection> WorldDatabase;
-DatabaseWorkerPool<CharacterDatabaseConnection> CharacterDatabase;
-DatabaseWorkerPool<LoginDatabaseConnection> LoginDatabase;
-DatabaseWorkerPool<HotfixDatabaseConnection> HotfixDatabase;
-DatabaseWorkerPool<AIDatabaseConnection> AIDatabase;
+void AIDatabaseConnection::DoPrepareStatements()
+{
+    if (!m_reconnecting)
+        m_stmts.resize(MAX_AIDATABASE_STATEMENTS);
+}
+
+AIDatabaseConnection::AIDatabaseConnection(MySQLConnectionInfo& connInfo, ConnectionFlags connectionFlags)
+    : MySQLConnection(connInfo, connectionFlags)
+{
+}
+
+AIDatabaseConnection::~AIDatabaseConnection()
+{
+}

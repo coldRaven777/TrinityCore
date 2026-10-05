@@ -116,6 +116,12 @@ LoginDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;auth"
 WorldDatabaseInfo     = "127.0.0.1;3306;trinity;trinity;world"
 CharacterDatabaseInfo = "127.0.0.1;3306;trinity;trinity;characters"
 HotfixDatabaseInfo    = "127.0.0.1;3306;trinity;trinity;hotfixes"
+#    AIDatabaseInfo
+#        Description: Dedicated schema for the LivingNPC AI feature (events, character
+#                     registry). Keep AI data OUT of the game databases.
+#        Default:     "127.0.0.1;3306;trinity;trinity;ai_npc"   - (AIDatabaseInfo)
+#                     Leave empty to disable AI event logging.
+AIDatabaseInfo        = "127.0.0.1;3306;trinity;trinity;ai_npc"
 
 #
 #    LoginDatabase.WorkerThreads
@@ -4150,6 +4156,7 @@ Logger.scripts.hotswap=3,Console Server
 Logger.sql.sql=5,Console DBErrors
 Logger.sql.updates=3,Console Server
 Logger.mmaps=3,Server
+Logger.AISystem=4,Console Server
 
 #Logger.addon=3,Console Server
 #Logger.ahbot=3,Console Server
@@ -4400,6 +4407,190 @@ Pvp.FactionBalance.Pct20 = 0.8
 #                     1 - (Enabled)
 
 Load.Locales = 1
+
+#
+###################################################################################################
+
+###################################################################################################
+# AI SYSTEM (LivingNPC / "Alive NPCs")
+#
+# Makes creatures (NPCs/MOBs) speak through an LLM (OpenRouter by default), to the
+# player and to each other. See docs/ai-npc/ for the design and spec.
+#
+# The API key and model id are read directly from this file (AISystem.OpenRouterApiKey,
+# AISystem.ChatModel, AISystem.DecisionModel) and are intentionally NOT part of the
+# WorldBool/Int/Float config enums. Keep AISystem.OpenRouterApiKey in your LOCAL
+# (untracked) worldserver.conf only — never commit a real key.
+
+#    AISystem.Enabled
+#        Description: Master switch for the LivingNPC feature.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+AISystem.Enabled = 0
+
+#    AISystem.OpenRouterApiKey
+#        Description: OpenRouter API key (https://openrouter.ai/keys). Leave empty to
+#                     disable real calls; the system logs a warning and stays idle.
+
+AISystem.OpenRouterApiKey = ""
+
+#    AISystem.ModelChat
+#        Description: OpenRouter model id used for NPC chat replies.
+#        Default:     "openai/gpt-4o-mini"
+
+AISystem.ChatModel = "openai/gpt-4o-mini"
+
+#    AISystem.ModelDecision
+#        Description: OpenRouter model id used for the "who should reply" decision.
+#        Default:     "openai/gpt-4o-mini"
+
+AISystem.DecisionModel = "openai/gpt-4o-mini"
+
+#    AISystem.UseDecisionModel
+#        Description: Use the LLM decision model to pick a responder NPC.
+#                    0 = rule-based fallback (closest other NPC), no extra API call.
+#        Default:     1 - (Enabled)
+
+AISystem.UseDecisionModel = 1
+
+#    AISystem.AmbientNeedsPlayer
+#        Description: Ambient NPC<->NPC chatter only happens when a player is present.
+#        Default:     1 - (Enabled)
+
+AISystem.AmbientNeedsPlayer = 1
+
+#    AISystem.MaxTokens
+#        Description: Max tokens for the chat reply.
+#        Default:     220
+
+AISystem.MaxTokens = 220
+
+#    AISystem.EarshotRadius
+#        Description: Radius (yards) within which NPCs/player "hear" each other.
+#        Default:     15
+
+AISystem.EarshotRadius = 15
+
+#    AISystem.RequestTimeout
+#        Description: HTTP request timeout to OpenRouter (seconds).
+#        Default:     8
+
+AISystem.RequestTimeoutSec = 8
+
+#    AISystem.Cooldown
+#        Description: Minimum seconds between LLM replies for the same NPC.
+#        Default:     3
+
+AISystem.CooldownSec = 3
+
+#    AISystem.NpcChatCooldown
+#        Description: Seconds between narrator-driven ambient NPC selections (only when
+#                     a player is present). 0 disables ambient chatter entirely.
+#        Default:     50 (Spec 003 raised to 60)
+#
+#    AISystem.AmbientGlobalCooldownSec
+#        Description: Minimum gap (seconds) between ANY ambient narrator call across all
+#                     maps, so narrator prompts don't fire back-to-back. 0 disables the
+#                     global guard.
+#        Default:     30
+#
+#    AISystem.ResponderDistanceBias
+#        Description: Reserved tuning weight for responder selection (distance-first).
+#                     1.0 = prefer the closest other NPC. 0 = legacy "first in map store".
+#        Default:     1.0
+#
+#    AISystem.AmbientMaxPerMinute
+#        Description: Hard cap on ambient narrator calls per rolling minute (anti-spam).
+#                     0 = unlimited. Raise to 1-2 to strictly limit NPC-initiated speech.
+#        Default:     0
+
+AISystem.NpcChatCooldownSec = 60
+AISystem.AmbientGlobalCooldownSec = 30
+AISystem.ResponderDistanceBias = 1.0
+AISystem.AmbientMaxPerMinute = 0
+
+#    AISystem.Temperature
+#        Description: Sampling temperature for chat replies.
+#        Default:     0.9
+
+AISystem.Temperature = 0.9
+
+#    AISystem.ContextSystemRatio
+#        Description: Fraction of the context budget reserved for the system/persona prompt.
+#        Default:     0.30
+
+AISystem.ContextSystemRatio = 0.30
+
+#    AISystem.ContextHistoryRatio
+#        Description: Fraction of the context budget used for rolling chat history.
+#        Default:     0.60
+
+AISystem.ContextHistoryRatio = 0.60
+
+#    AISystem.InterjectChance
+#        Description: Probability that an earshot NPC adds an interjection line.
+#        Default:     0.25
+
+AISystem.InterjectChance = 0.25
+
+# --- Spec 002 ---
+
+#    AISystem.Language
+#        Description: Language the LLM replies in (ISO 639-1, lowercase).
+#                     Overridable per NPC via ai_character.language.
+#        Default:     en - (English)
+
+AISystem.Language = en
+
+#    AISystem.PromptRoot
+#        Description: Root folder of the file-driven prompt tree (prompts/ + characters/).
+#                     Relative paths are resolved against the worldserver working directory.
+#        Default:     "ai"
+
+AISystem.PromptRoot = "ai"
+
+#    AISystem.EventLog
+#        Description: Master switch for the AI event log. When enabled, events are written
+#                     to the ai_npc database while a player is within ActivationRadius,
+#                     INDEPENDENTLY of AISystem.Enabled (so the dashboard has data even with
+#                     AI replies off).
+#        Default:     1 - (Enabled)
+
+AISystem.EventLog = 1
+
+#    AISystem.ActivationRadius
+#        Description: Yards around a player where the AI engine is active. Every event and
+#                     every AI trigger only happens inside this "immediate periphery".
+#        Default:     40.0
+
+AISystem.ActivationRadius = 40.0
+
+#    AISystem.MaxInjectedEvents
+#        Description: How many recent ai_event rows are injected into the {{events}} slot.
+#        Default:     20
+
+AISystem.MaxInjectedEvents = 20
+
+#    AISystem.EventTrimChars
+#        Description: Character cap for the {{events}} slot.
+#        Default:     4000
+
+AISystem.EventTrimChars = 4000
+
+#    AISystem.SummaryChars
+#        Description: Character cap for the naive {{summary}} slot (Spec 003 replaces it).
+#        Default:     1200
+
+AISystem.SummaryChars = 1200
+
+#    AISystem.SpeakableOnlyHumanoidMechanical
+#        Description: When enabled (default), only humanoid (7) and mechanical (9)
+#                     creatures can be selected as AI speakers. Set 0 to allow ANY
+#                     creature type (beasts, critters, ...) to speak.
+#        Default:     1 - (Enabled)
+
+AISystem.SpeakableOnlyHumanoidMechanical = 1
 
 #
 ###################################################################################################

@@ -107,6 +107,7 @@
 #include "WhoListStorage.h"
 #include "WorldSession.h"
 #include "WorldStateMgr.h"
+#include "AI/LivingNPC/AIManager.h"
 #include <zlib.h>
 
 TC_GAME_API std::atomic<bool> World::m_stopEvent(false);
@@ -1237,6 +1238,9 @@ bool World::SetInitialWorldSettings()
 {
     sLog->SetRealmId(sRealmList->GetCurrentRealmId().Realm);
 
+    // Alive NPCs (LivingNPC): load config + start async HTTP service.
+    sAIManager->Initialize();
+
     ///- Server startup begin
     uint32 startupBegin = getMSTime();
 
@@ -2131,6 +2135,9 @@ void World::Update(uint32 diff)
     time_t currentGameTime = GameTime::GetGameTime();
 
     sWorldUpdateTime.UpdateWithDiff(diff);
+
+    // Alive NPCs (LivingNPC): drain completed LLM replies and run ambient narrator.
+    sAIManager->Update(diff);
 
     ///- Update the different timers
     for (int i = 0; i < WUPDATE_COUNT; ++i)

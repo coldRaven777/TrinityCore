@@ -25,6 +25,7 @@
 #include "Implementation/CharacterDatabase.h"
 #include "Implementation/WorldDatabase.h"
 #include "Implementation/HotfixDatabase.h"
+#include "Implementation/AIDatabase.h"
 
 #include "Field.h"
 #include "PreparedStatement.h"
@@ -40,5 +41,7 @@ TC_DATABASE_API extern DatabaseWorkerPool<CharacterDatabaseConnection> Character
 TC_DATABASE_API extern DatabaseWorkerPool<LoginDatabaseConnection> LoginDatabase;
 /// Accessor to the hotfix database
 TC_DATABASE_API extern DatabaseWorkerPool<HotfixDatabaseConnection> HotfixDatabase;
+/// Accessor to the AI (LivingNPC) database — separate `ai_npc` schema (SPEC-002 §3.4)
+TC_DATABASE_API extern DatabaseWorkerPool<AIDatabaseConnection> AIDatabase;
 
 #endif

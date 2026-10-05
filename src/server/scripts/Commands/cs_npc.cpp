@@ -48,6 +48,7 @@ EndScriptData */
 #include "SpellMgr.h"
 #include "Transport.h"
 #include "World.h"
+#include "AI/LivingNPC/AIManager.h"
 #include "WorldSession.h"
 
 using namespace Trinity::ChatCommands;
@@ -942,6 +943,10 @@ public:
         }
 
         creature->Say(text, LANG_UNIVERSAL);
+
+        // Alive NPCs (LivingNPC): nearby NPCs may respond to this NPC's utterance.
+        if (sAIManager->IsEnabled())
+            sAIManager->OnNpcSpeak(creature, std::string(text));
 
         // make some emotes
         switch (text.back())

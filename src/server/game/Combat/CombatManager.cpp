@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AI/LivingNPC/AIManager.h"
 #include "CombatManager.h"
 #include "Creature.h"
 #include "CreatureAI.h"
@@ -230,6 +231,11 @@ bool CombatManager::SetInCombatWith(Unit* who, bool addSecondUnitSuppressed)
         NotifyAICombat(_owner, who);
     if (needOtherAI)
         NotifyAICombat(who, _owner);
+
+    // LivingNPC: log combat initiated (only reached when a NEW combat reference was
+    // created above). Internally gated by EventLog + player proximity (SPEC-002 §3).
+    sAIManager->OnUnitCombatStart(_owner, who);
+
     return IsInCombatWith(who);
 }
 

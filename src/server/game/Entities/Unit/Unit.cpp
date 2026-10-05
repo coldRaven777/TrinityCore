@@ -17,6 +17,7 @@
 
 #include "Unit.h"
 #include "AbstractFollower.h"
+#include "AI/LivingNPC/AIManager.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
 #include "Battleground.h"
@@ -6054,6 +6055,9 @@ void Unit::CombatStop(bool includingCast, bool mutualPvP, bool (*unitFilter)(Uni
         m_combatManager.EndAllPvPCombat(unitFilter);
     else // vanish and brethren are weird
         m_combatManager.SuppressPvPCombat(unitFilter);
+
+    // LivingNPC: log combat end (internally gated by EventLog + player proximity, SPEC-002 §3).
+    sAIManager->OnUnitCombatEnd(this);
 }
 
 void Unit::CombatStopWithPets(bool includingCast)
@@ -11296,6 +11300,10 @@ void Unit::SetMeleeAnimKitId(uint16 animKitId)
 
     if (attacker && !attacker->IsInMap(victim))
         attacker = nullptr;
+
+    // LivingNPC: log a death event for the AI event log (internally gated by
+    // AISystem.EventLog + player proximity, per SPEC-002 §3.6).
+    sAIManager->OnUnitDeath(victim, attacker);
 
     // find player: owner of controlled `this` or `this` itself maybe
     Player* player = nullptr;

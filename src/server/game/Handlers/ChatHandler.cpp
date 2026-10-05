@@ -40,6 +40,7 @@
 #include "SpellAuraEffects.h"
 #include "Util.h"
 #include "World.h"
+#include "AI/LivingNPC/AIManager.h"
 #include <algorithm>
 
 enum class ChatWhisperTargetStatus : uint8
@@ -256,6 +257,10 @@ ChatMessageResult WorldSession::HandleChatMessage(ChatMsg type, Language lang, s
             }
 
             sender->Say(msg, lang);
+
+            // Alive NPCs (LivingNPC): let nearby NPCs respond to the player's say.
+            if (sAIManager->IsEnabled())
+                sAIManager->OnPlayerSpeak(sender, msg);
             break;
         }
         case CHAT_MSG_EMOTE:
